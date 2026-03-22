@@ -1,0 +1,71 @@
+SUPERVISED PCA: A MULTIOBJECTIVE APPROACH
+
+0 ABSTRACT
+
+PCA, but taking lables into account 
+(making it useful for supervised learning)
+
+Previous SPCA methods:
+    * only optimize prediction error
+    * do not maximise variance
+This approach takes both into account
+
+---
+
+1 INTRODUCTION 
+
+Advantages of this approach:
+    * This approach is good for an arbitrary loss fucntion
+    * This approach uses the same loss function for training and inference
+    * This approach introduces a tuning parameter for prediction error / variation explained tradeoff
+        - VE serves as a form of regularization and helps with interpretability
+
+Steps in the paper:
+    1. formulation of SPCA based on multiobjective optimization
+        - multiobjective = PE + VA?
+    2. generalize the formulation
+        - spirit of GLMs
+            * linear regression -> GLMs
+                <--->
+            * SPCA -> family of generalized SPCAs
+    3. maximum likelihood procedure for optimization
+    4. kernel setting
+    5. evaluation
+
+---
+
+2 BACKGROUND AND RELATED WORK
+
+PCA:
+L holds the top r principal components (directions) as vectors
+VE tells us the % of the variance captured in projected space
+
+SPCA:
+Dimensions with most variance does not equal most predictive dimensions for Y
+
+Approaches:
+    * Fisher's discriminant analysis, FDA:
+        minimizes intraclass variance, maximizes interclass variance
+    * Partial least squares, PLS
+        projects both X and Y to determine their relationship
+    * Reduce ranked regression, RRR
+        assumes relationship (projection matrix) between X and Y is low rank
+    * Bair's method (oldest, two steps):
+        1. univariate feature selection (weights, same as feature selection?)
+        2. PCA on selected features
+        drawback: only optimizes for indvidually predictive features
+    * Goes on to explain other methods, will come back if relevant
+
+---
+
+3 APPROACH
+
+Pareto optimality:
+If goals are exclusive (minimizing PE and maximizing VE are), Pareto fronier
+defines a function (epigraph) in the performance measure space that describes
+available best performances on the problem.
+
+We will optimize a weighted sum of performance measures.
+
+Since the multiobjective loss function will not be solvable by SVD,
+we need to enforse orthonormality of L by other means - manifold gradient algorithms

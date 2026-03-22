@@ -1,0 +1,55 @@
+Supervised Principal Component Analysis Via Manifold Optimization
+
+There are two kinds of SPCA algorithms:
+- two step: first PCA, then supervised (or vice versa)
+    - Bair's method
+- single step: the tradeoff between variance explained and prediction error is explicitly addressed by a single param
+    - manifold Optimization
+    - multiobjective approach
+
+Stiefel manifold: set of matrices with orhonormal columns.
+    - geometrically, this is a curved space
+    - why do we care?
+        * when you do a gradient descent step, LLt => (L-xG)(L-xG)t, orthonormality breaks,
+        * we do the gradient step on the tangent space of the manifold space
+        * then we need to project it back onto the manifold space
+
+Grassmann manifold G(p, k): all k-dimensional subspaces in p-dimensional space
+    - G(3,2) = all planes through the origin in 3D - each point in the manifold is one plane.
+    - this is different then Steifel, since any subscpace can be spanned by infinitely many matrices.
+    - we use Grassmann instead, since it's possible to prove,
+        that prediction will be the same, no matter which L we choose among the ones that span the same subspace
+    - for proof, apply the same rotation to beta and L matrices, the result doesn't change
+        -> i.e. rotating L can be compensated by rotating beta
+    - since many operations (gradient, tangents, moving along godisics) are easier when 
+        you remove the redundant degrees of freedom, our search space will be the Grassmann manifold.
+
+Riemmann manifold = manifold with geometry defined (Grassmann manifold is a r.m.) 
+
+Regularization is unnecessary
+    * regression with beta coefficients is performed on the reduced matrix L.
+    * regularization is a tool to prevent overfitting on complex data.
+    * here the data representatioin is inherently simple
+
+Why solve the least squares error linear regression with MP inverse?
+    * MP inverse optimally solves LSE
+    * Replaces beta with L in equation, now we only have to minimize one variable
+        - although this makes calculating derivatives harder
+
+Gradient descent algorithm:
+    * Gradient step = step in the direction of the gradient
+        - does not stay on the Grassmann manifold
+    * Better gradient step = compure grad -> project to tangent space -> tangent step -> retraction
+        - retraction = correction after a tangent step to stay on the curved surface
+    * Geodesic step = direst step that stays on the curved surface
+        - intuition: performed by rotating the surface
+        - compute the SVD of Riemannian gradient
+        - rotate along the "principal rotation directons" (orthogonal rotation components). 
+    * Armijo backtracking: choice of step size
+        - if the step size does not lower the loss (enough), shrink it.
+    * The stopping confition is grad(L)_f < eps, where grad(L) is Riemannian gradient,
+        the gradient of the projection onto the tangent space.
+
+Question regarding results: how tf does variation explained ascend with amount of 
+iterations if the solution is plain PCA (max VE) at first and then gradually 
+moves towards combo loss - VE and LSE?
