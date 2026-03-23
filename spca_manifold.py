@@ -1,10 +1,3 @@
-# 1: find 3D X and Y by hand that you know what it should converge to in 2D
-#   - vizualize, try with regular PCA
-# 2: construct boilerplate pytorch (with chatgpt)
-# 3: define loss
-# 4: implement full algorithm
-# 5: use a better dataset 
-
 import numpy as np
 import torch
 import matplotlib.pyplot as plt

@@ -116,7 +116,7 @@ if __name__ == "__main__":
     C = [1, 1, 2, 2, 3, 3]
     names = ["p1", "p2", "p3", "p4", "p5", "p6"]
     """
-    E_raw, C, names, feature_names, class_names = load_zoo_tab("zoo.tab")
+    E_raw, C, names, feature_names, class_names = load_zoo_tab("data/zoo.tab")
     E = scale_features(E_raw)
     A = initialize_projection_matrix(E.shape[1])
     #A = np.random.rand(E.shape[1], 2)
