@@ -177,7 +177,11 @@ X = X - X.mean(dim=0)
 Y = Y - Y.mean(dim=0)
 
 model = SupervisedPCA(input_dim=X.shape[1], output_dim=1)
-history = train(model, X, Y, lam=1, steps=200)
+history = train(model, X, Y, lam=100, steps=200)
 
-Z_learned = model(X).detach().numpy()
-viz_2d(Z_learned)
+L_final = model.L.detach().numpy()  # shape (3, k)
+feature_names = ["x1", "x2", "x3"]
+
+for i in range(L_final.shape[1]):
+    components = [f"{L_final[j, i]:.3f}*{feature_names[j]}" for j in range(3)]
+    print(f"PC{i+1} = " + " + ".join(components))
