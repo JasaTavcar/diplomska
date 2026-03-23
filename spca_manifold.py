@@ -17,7 +17,7 @@ x3 = np.random.randn(n) * 0.1 # Low variance noise
 X = np.vstack([x1, x2, x3]).T
 
 # Y depends mostly on x2 + small noise
-Y = 2 * x2 + np.random.randn(n) * 0.5
+Y = 10 * x2 + np.random.randn(n) * 0.5
 
 def viz_3d(X):
     fig = plt.figure()
@@ -57,7 +57,7 @@ class SupervisedPCA(torch.nn.Module):
 def train(model, X, Y, lam, steps=200):
     # Initialize with PCA so rank condition holds
     with torch.no_grad(): # don't break autograd
-        model.L.copy_(init_L_pca(X))
+        model.L.copy_(init_L_pca(X, k=model.L.shape[1]))
 
     history = []
 
@@ -77,7 +77,7 @@ def train(model, X, Y, lam, steps=200):
             model.L.copy_(geodesic_step(model.L, grad, eta))
 
         # Orthogonality sanity check
-        print("orthogonality drift:", torch.norm(model.L.T @ model.L - torch.eye(model.L.shape[0])))
+        #print("orthogonality drift:", torch.norm(model.L.T @ model.L - torch.eye(model.L.shape[0])))
 
         loss = loss_fn(X, Y, model.L, lam)
         history.append(loss.item())
@@ -91,7 +91,9 @@ def armijo(X, Y, L, grad, lam, alpha=1.0, beta=0.5, c=1e-4):
     loss0 = loss_fn(X, Y, L, lam)
     grad_norm_sq = torch.norm(grad)**2
 
-    while True:
+    max_iters = 20
+    while max_iters > 0:
+        max_iters -= 1
         L_new = geodesic_step(L, grad, alpha)
         loss_new = loss_fn(X, Y, L_new, lam)
 
@@ -100,6 +102,10 @@ def armijo(X, Y, L, grad, lam, alpha=1.0, beta=0.5, c=1e-4):
 
         alpha *= beta
 
+    if max_iters == 0:
+        alpha = 1e-9  # fallback small step
+
+    #print("alpha:", alpha)
     return alpha
 
 def loss_fn(X, Y, L, lam=1.0):
@@ -133,7 +139,7 @@ def euclidean_grad(X, Y, L, lam):
     term1 = -2 * (XL_pinv @ Y @ Y.T @ P_perp @ X) # (k, p)
     term1 = term1.T # match shape (p, k)
 
-    term2 = -2 * lam * (L @ (X.T @ X)) # (p, k)
+    term2 = -2 * lam * ((X.T @ X) @ L) # (p, k)
 
     return term1 + term2
 
@@ -157,9 +163,9 @@ def geodesic_step(L, grad, step_size):
 
     return L_new
 
-def init_L_pca(X):
+def init_L_pca(X, k):
     U, S, Vt = torch.linalg.svd(X)
-    return Vt.T   # (p, k)
+    return Vt[:k].T   # (p, k)
 
 #viz_3d(X)
 
@@ -170,8 +176,8 @@ Y = torch.tensor(Y, dtype=torch.float32).unsqueeze(1)  # (n, 1)
 X = X - X.mean(dim=0)
 Y = Y - Y.mean(dim=0)
 
-model = SupervisedPCA(input_dim=X.shape[1], output_dim=3)
-history = train(model, X, Y, lam=1.0, steps=200)
+model = SupervisedPCA(input_dim=X.shape[1], output_dim=1)
+history = train(model, X, Y, lam=1, steps=200)
 
 Z_learned = model(X).detach().numpy()
 viz_2d(Z_learned)
