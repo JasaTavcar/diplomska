@@ -43,7 +43,6 @@ def pca_projection(X, k=2):
     U, S, Vt = torch.linalg.svd(X_centered)
     return X_centered @ Vt[:k].T
 
-# Supervised PCA
 class SupervisedPCA(torch.nn.Module):
     def __init__(self, input_dim, output_dim=2):
         super().__init__()
@@ -53,7 +52,6 @@ class SupervisedPCA(torch.nn.Module):
         XL = X @ self.L
         return XL @ torch.linalg.pinv(XL) @ Y
     
-# training loop
 def train(model, X, Y, lam, steps=200):
     # Initialize with PCA so rank condition holds
     with torch.no_grad(): # don't break autograd
@@ -86,6 +84,32 @@ def train(model, X, Y, lam, steps=200):
         print(f"Step {step}: loss = {loss.item():.4f}")
 
     return history
+
+def train_lambda_unknown(model_class, X, Y, output_dim=2, steps=200):
+    lambda_candidates = [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
+    best_lambda = None
+    best_loss = float('inf')
+    best_model = None
+
+    for lam in lambda_candidates:
+        # Initialize a fresh model for each lambda
+        model = model_class(input_dim=X.shape[1], output_dim=output_dim)
+        
+        # Train L for this lambda
+        train(model, X, Y, lam=lam, steps=steps)
+
+        # Compute normalized loss
+        norm_loss = normalized_loss(X, Y, model.L, lam)
+        print(f"Lambda {lam}: normalized loss = {norm_loss.item():.4f}")
+
+        if norm_loss < best_loss:
+            best_loss = norm_loss
+            best_lambda = lam
+            best_model = model
+
+    print(f"Selected lambda: {best_lambda} with normalized loss {best_loss:.4f}")
+    return best_lambda, best_model
+
 
 def armijo(X, Y, L, grad, lam, alpha=1.0, beta=0.5, c=1e-4):
     loss0 = loss_fn(X, Y, L, lam)
@@ -128,6 +152,17 @@ def loss_fn(X, Y, L, lam=1.0):
     pca_loss = torch.norm(X - X_recon)**2 # Forbenious
 
     return pred_loss + lam * pca_loss
+
+def normalized_loss(X, Y, L, lam=0.0):
+    XL = X @ L  # (n, k)
+    XL_pinv = torch.linalg.pinv(XL)
+    P = XL @ XL_pinv  # projection onto XL
+    pred_loss = torch.norm(Y - P @ Y)**2 / torch.norm(Y)**2
+
+    X_recon = XL @ L.T
+    recon_loss = torch.norm(X - X_recon)**2 / torch.norm(X)**2
+
+    return pred_loss + recon_loss
 
 def euclidean_grad(X, Y, L, lam):
     XL = X @ L # (n, k)
@@ -176,12 +211,10 @@ Y = torch.tensor(Y, dtype=torch.float32).unsqueeze(1)  # (n, 1)
 X = X - X.mean(dim=0)
 Y = Y - Y.mean(dim=0)
 
-model = SupervisedPCA(input_dim=X.shape[1], output_dim=1)
-history = train(model, X, Y, lam=100, steps=200)
+best_lambda, best_model = train_lambda_unknown(SupervisedPCA, X, Y, output_dim=1, steps=100)
+L_final = best_model.L.detach().numpy()
 
-L_final = model.L.detach().numpy()  # shape (3, k)
 feature_names = ["x1", "x2", "x3"]
-
 for i in range(L_final.shape[1]):
     components = [f"{L_final[j, i]:.3f}*{feature_names[j]}" for j in range(3)]
     print(f"PC{i+1} = " + " + ".join(components))
