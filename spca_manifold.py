@@ -256,3 +256,13 @@ L_final = best_model.L.detach()
 pred_loss, recon_loss = normalized_loss(X, y, L_final)
 print(f"MSE: {prediction_error(X, L_final, y):.4f}")
 print(f"Variance explained: {variance_explained(X, L_final):.4f}")
+
+# Explain principal components
+feature_names = list(df[feature_cols].columns)
+L_np = L_final.numpy()  # (num_features, num_components)
+for i in range(L_np.shape[1]):
+    pairs = [(feature_names[j], L_np[j, i]) for j in range(L_np.shape[0])]
+    pairs_sorted = sorted(pairs, key=lambda x: abs(x[1]), reverse=True)
+    components = [f"{w:.3f}*{name}" for name, w in pairs_sorted]
+    print(f"\nPC{i+1} (sorted by importance):")
+    print(" + ".join(components[:5]))
