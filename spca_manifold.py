@@ -74,7 +74,7 @@ def train(model, X, Y, lam, steps=200):
         loss = loss_fn(X, Y, model.L, lam)
         history.append(loss.item())
 
-        if step % 100 == 0:
+        if step % 10 == 0:
             print(f"Step {step}: loss = {loss.item():.4f}")
 
     return history
@@ -107,11 +107,11 @@ def train_lambda_unknown(model_class, X, Y, output_dim=2, steps=200):
     return best_lambda, best_model
 
 
-def armijo(X, Y, L, grad, lam, alpha=0.5, beta=0.2, c=1e-4):
+def armijo(X, Y, L, grad, lam, alpha=1.0, beta=0.2, c=1e-4):
     loss0 = loss_fn(X, Y, L, lam)
     grad_norm_sq = torch.norm(grad)**2
 
-    max_iters = 20
+    max_iters = 50
     while max_iters > 0:
         max_iters -= 1
         L_new = geodesic_step(L, grad, alpha)
@@ -123,7 +123,7 @@ def armijo(X, Y, L, grad, lam, alpha=0.5, beta=0.2, c=1e-4):
         alpha *= beta
 
     if max_iters == 0:
-        alpha = 1e-9  # fallback small step
+        alpha = 1e-12  # fallback small step
 
     #print("alpha:", alpha)
     return alpha
@@ -159,6 +159,9 @@ def normalized_loss(X, Y, L):
     recon_loss = torch.norm(X - X_recon)**2 / torch.norm(X)**2
 
     return pred_loss, recon_loss
+
+def variance_explained(X, L):
+    return torch.norm(X @ L, 'fro')**2 / torch.norm(X, 'fro')**2
 
 def euclidean_grad(X, Y, L, lam):
     XL = X @ L # (n, k)
@@ -226,15 +229,17 @@ for i in range(L_final.shape[1]):
 """
 
 # proper dataset: residential buildings
-file_path = "data/buildings.xlsx"
-df = pd.read_excel(file_path)
-df.columns = df.iloc[0]
-df = df.drop(0).reset_index(drop=True)
-df = df.apply(pd.to_numeric)
+file_path = "data/parkinsons.data"
+df = pd.read_csv(file_path)
+df = df[:1000]
 print(df.head())
+target_cols = ['motor_UPDRS', 'total_UPDRS']
+feature_cols = df.columns.drop(['subject#', *target_cols])
+X = df[feature_cols].values
+y = df['total_UPDRS'].values
 
-X = df.iloc[:, :-2].values
-y = df.iloc[:, -1].values
+#X = df.iloc[:, :-2].values
+#y = df.iloc[:, -1].values
 X = torch.tensor(X, dtype=torch.float64)
 y = torch.tensor(y, dtype=torch.float64).unsqueeze(1)
 
@@ -244,8 +249,8 @@ y = y - y.mean(dim=0)
 print(X.shape)
 print(y.shape)
 
-best_lambda, best_model = train_lambda_unknown(SupervisedPCA, X, y, output_dim=3, steps=1000)
+best_lambda, best_model = train_lambda_unknown(SupervisedPCA, X, y, output_dim=2, steps=200)
 L_final = best_model.L.detach()
 pred_loss, recon_loss = normalized_loss(X, y, L_final)
-print(f"Prediction loss: {pred_loss:.4f}")
-print(f"Reconstruction loss: {recon_loss:.4f}")
+print(f"Normalized prediction loss: {pred_loss:.4f}")
+print(f"Variance explained: {variance_explained(X, L_final):.4f}")
