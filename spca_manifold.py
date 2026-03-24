@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # Construct a test dataset
 n = 10
@@ -39,7 +40,7 @@ def pca_projection(X, k=2):
 class SupervisedPCA(torch.nn.Module):
     def __init__(self, input_dim, output_dim=2):
         super().__init__()
-        self.L = torch.nn.Parameter(torch.randn(input_dim, output_dim, dtype=torch.float32))
+        self.L = torch.nn.Parameter(torch.randn(input_dim, output_dim, dtype=torch.float64))
 
     def project(self, X, Y):
         XL = X @ self.L
@@ -73,13 +74,13 @@ def train(model, X, Y, lam, steps=200):
         loss = loss_fn(X, Y, model.L, lam)
         history.append(loss.item())
 
-        #if step % 20 == 0:
-        print(f"Step {step}: loss = {loss.item():.4f}")
+        if step % 100 == 0:
+            print(f"Step {step}: loss = {loss.item():.4f}")
 
     return history
 
 def train_lambda_unknown(model_class, X, Y, output_dim=2, steps=200):
-    lambda_candidates = [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
+    lambda_candidates = [0.01, 0.1, 1.0, 10.0, 100.0]
     best_lambda = None
     best_loss = float('inf')
     best_model = None
@@ -92,11 +93,13 @@ def train_lambda_unknown(model_class, X, Y, output_dim=2, steps=200):
         train(model, X, Y, lam=lam, steps=steps)
 
         # Compute normalized loss
-        norm_loss = normalized_loss(X, Y, model.L, lam)
-        print(f"Lambda {lam}: normalized loss = {norm_loss.item():.4f}")
+        pred_loss, recon_loss = normalized_loss(X, Y, model.L)
+        norm_loss = pred_loss + recon_loss
+        norm_loss_value = norm_loss.item()
+        print(f"Lambda {lam}: normalized loss = {norm_loss_value:.4f}")
 
-        if norm_loss < best_loss:
-            best_loss = norm_loss
+        if norm_loss_value < best_loss:
+            best_loss = norm_loss_value
             best_lambda = lam
             best_model = model
 
@@ -104,7 +107,7 @@ def train_lambda_unknown(model_class, X, Y, output_dim=2, steps=200):
     return best_lambda, best_model
 
 
-def armijo(X, Y, L, grad, lam, alpha=1.0, beta=0.5, c=1e-4):
+def armijo(X, Y, L, grad, lam, alpha=0.5, beta=0.2, c=1e-4):
     loss0 = loss_fn(X, Y, L, lam)
     grad_norm_sq = torch.norm(grad)**2
 
@@ -132,7 +135,7 @@ def loss_fn(X, Y, L, lam=1.0):
     XL = X @ L # (n, k)
 
     # pseudoinverse
-    XL_pinv = torch.linalg.pinv(XL)
+    XL_pinv = torch.linalg.pinv(XL, rtol=1e-6)
 
     # projection matrix onto span(XL)
     P = XL @ XL_pinv # (n, n)
@@ -146,20 +149,20 @@ def loss_fn(X, Y, L, lam=1.0):
 
     return pred_loss + lam * pca_loss
 
-def normalized_loss(X, Y, L, lam=0.0):
+def normalized_loss(X, Y, L):
     XL = X @ L  # (n, k)
-    XL_pinv = torch.linalg.pinv(XL)
+    XL_pinv = torch.linalg.pinv(XL, rtol=1e-6)
     P = XL @ XL_pinv  # projection onto XL
     pred_loss = torch.norm(Y - P @ Y)**2 / torch.norm(Y)**2
 
     X_recon = XL @ L.T
     recon_loss = torch.norm(X - X_recon)**2 / torch.norm(X)**2
 
-    return pred_loss + recon_loss
+    return pred_loss, recon_loss
 
 def euclidean_grad(X, Y, L, lam):
     XL = X @ L # (n, k)
-    XL_pinv = torch.linalg.pinv(XL)
+    XL_pinv = torch.linalg.pinv(XL, rtol=1e-6)
 
     P = XL @ XL_pinv # projection onto span(XL)
     P_perp = torch.eye(X.shape[0], device=X.device, dtype=X.dtype) - P
@@ -195,19 +198,54 @@ def init_L_pca(X, k):
     U, S, Vt = torch.linalg.svd(X)
     return Vt[:k].T   # (p, k)
 
-#viz_3d(X)
+def variation_explained(X, L):
+    XL = X @ L          # (n, k)
+    X_recon = XL @ L.T  # (n, p)
+    varex = torch.norm(X_recon, 'fro')**2 / torch.norm(X, 'fro')**2
+    return varex
 
+def prediction_error(X, L, Y):
+    XL = X @ L
+    P = XL @ torch.linalg.pinv(XL, rtol=1e-6)
+    mse = torch.mean((Y - P @ Y)**2)
+    return mse
+
+# simple manually constructed dataset
+"""
+viz_3d(X)
 X = torch.tensor(X, dtype=torch.float32)
 Y = torch.tensor(Y, dtype=torch.float32).unsqueeze(1)  # (n, 1)
-
-# center matrices
 X = X - X.mean(dim=0)
 Y = Y - Y.mean(dim=0)
-
 best_lambda, best_model = train_lambda_unknown(SupervisedPCA, X, Y, output_dim=1, steps=100)
 L_final = best_model.L.detach().numpy()
-
 feature_names = ["x1", "x2", "x3"]
 for i in range(L_final.shape[1]):
     components = [f"{L_final[j, i]:.3f}*{feature_names[j]}" for j in range(3)]
     print(f"PC{i+1} = " + " + ".join(components))
+"""
+
+# proper dataset: residential buildings
+file_path = "data/buildings.xlsx"
+df = pd.read_excel(file_path)
+df.columns = df.iloc[0]
+df = df.drop(0).reset_index(drop=True)
+df = df.apply(pd.to_numeric)
+print(df.head())
+
+X = df.iloc[:, :-2].values
+y = df.iloc[:, -1].values
+X = torch.tensor(X, dtype=torch.float64)
+y = torch.tensor(y, dtype=torch.float64).unsqueeze(1)
+
+# Keep PCA objective in original feature scale: center only.
+X = X - X.mean(dim=0)
+y = y - y.mean(dim=0)
+print(X.shape)
+print(y.shape)
+
+best_lambda, best_model = train_lambda_unknown(SupervisedPCA, X, y, output_dim=3, steps=1000)
+L_final = best_model.L.detach()
+pred_loss, recon_loss = normalized_loss(X, y, L_final)
+print(f"Prediction loss: {pred_loss:.4f}")
+print(f"Reconstruction loss: {recon_loss:.4f}")
