@@ -69,8 +69,10 @@ def train(model, X, Y, lam, steps=200):
             model.L.copy_(geodesic_step(model.L, grad, eta))
 
         # Orthogonality sanity check
-        #print("orthogonality drift:", torch.norm(model.L.T @ model.L - torch.eye(model.L.shape[0])))
-
+        I = torch.eye(model.L.shape[1], dtype=model.L.dtype, device=model.L.device)
+        orthogonality_drift = torch.norm(model.L.T @ model.L - I)
+        assert orthogonality_drift < 0.1, f"Orthogonality drift too high: {orthogonality_drift.item():.3f} on step {step}"
+        
         loss = loss_fn(X, Y, model.L, lam)
         history.append(loss.item())
 
@@ -141,11 +143,11 @@ def loss_fn(X, Y, L, lam=1.0):
     P = XL @ XL_pinv # (n, n)
 
     # prediction term
-    pred_loss = torch.norm(Y - P @ Y)**2 # **2 -> Forbenious norm
+    pred_loss = torch.norm(Y - P @ Y)**2
 
     # reconstruction term
     X_recon = XL @ L.T
-    pca_loss = torch.norm(X - X_recon)**2 # Forbenious
+    pca_loss = torch.norm(X - X_recon)**2
 
     return pred_loss + lam * pca_loss
 
@@ -252,5 +254,5 @@ print(y.shape)
 best_lambda, best_model = train_lambda_unknown(SupervisedPCA, X, y, output_dim=2, steps=200)
 L_final = best_model.L.detach()
 pred_loss, recon_loss = normalized_loss(X, y, L_final)
-print(f"Normalized prediction loss: {pred_loss:.4f}")
+print(f"MSE: {prediction_error(X, L_final, y):.4f}")
 print(f"Variance explained: {variance_explained(X, L_final):.4f}")
