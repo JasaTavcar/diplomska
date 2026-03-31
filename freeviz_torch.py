@@ -70,7 +70,7 @@ def energy(P, C):
         for f in range(e+1, n_instances):
             dx = P[e][0] - P[f][0]
             dy = P[e][1] - P[f][1]
-            r = torch.sqrt(dx**2 + dy**2)
+            r = torch.sqrt(dx**2 + dy**2 + 1e-6)
 
             if C[e] == C[f]:
                 F_ef = -r
