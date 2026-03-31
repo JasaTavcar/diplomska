@@ -71,8 +71,6 @@ def energy(P, C):
             dx = P[e][0] - P[f][0]
             dy = P[e][1] - P[f][1]
             r = torch.sqrt(dx**2 + dy**2)
-            if r.item() == 0:
-                r = torch.tensor(1e-6, dtype=P.dtype, device=P.device)
 
             if C[e] == C[f]:
                 F_ef = -r
