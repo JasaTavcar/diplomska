@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import mplcursors
-from math import sqrt, sin, cos, pi, radians
+from math import sqrt, sin, cos, pi
 import pandas as pd
 
 def normalize(A):
@@ -105,21 +105,9 @@ def scale_features(E_raw):
 
 if __name__ == "__main__":
     # Initialize matrices
-    """
-    E = np.array([[1, 4, -1, 1], #c1
-                [5, 5, -1, 1], #c1
-                [1, 2, 3, 5], #c2
-                [5, 2, 2, 5], #c2
-                [1, -2, 3, 1], #c3
-                [5, -2, 4, 1]])#c3
-    E = E / np.max(E)
-    C = [1, 1, 2, 2, 3, 3]
-    names = ["p1", "p2", "p3", "p4", "p5", "p6"]
-    """
     E_raw, C, names, feature_names, class_names = load_zoo_tab("data/zoo.tab")
     E = scale_features(E_raw)
     A = initialize_projection_matrix(E.shape[1])
-    #A = np.random.rand(E.shape[1], 2)
 
     # Run a step
     A, Wp_old = step(E, C, A)
