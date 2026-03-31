@@ -66,24 +66,12 @@ def energy(P, C):
     F = torch.zeros_like(P)
     n_instances = P.shape[0]
 
-    for e in range(n_instances):
-        for f in range(e+1, n_instances):
-            dx = P[e][0] - P[f][0]
-            dy = P[e][1] - P[f][1]
-            r = torch.sqrt(dx**2 + dy**2 + 1e-6)
-
-            if C[e] == C[f]:
-                F_ef = -r
-            else:
-                F_ef = 1/r
-
-            F_efx = F_ef * dx/r
-            F[e][0] += F_efx
-            F[f][0] -= F_efx
-
-            F_efy = F_ef * dy/r
-            F[e][1] += F_efy
-            F[f][1] -= F_efy
+    diff = P.unsqueeze(1) - P.unsqueeze(0)  # (N, N, 2)
+    dist = torch.norm(diff, dim=2) + 1e-6   # (N, N)
+    same = (C.unsqueeze(0) == C.unsqueeze(1))
+    F_mag = torch.where(same, -dist, 1.0 / dist)
+    F_vec = F_mag.unsqueeze(2) * (diff / dist.unsqueeze(2))
+    F = F_vec.sum(dim=1)
 
     total_energy = torch.tensor(0.0, dtype=P.dtype, device=P.device)
     for e in range(n_instances):
