@@ -28,7 +28,6 @@ class Freeviz(torch.nn.Module):
         row_sums = E.sum(dim=1, keepdim=True)
         return (E @ self.A) / row_sums
 
-# one iteration
 def train(E, C, model, tol=1e-3, patience=5, max_iter=2000):
     optimizer = torch.optim.SGD(
         model.parameters(),
