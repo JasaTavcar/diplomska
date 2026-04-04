@@ -1,6 +1,18 @@
 import pandas as pd
 import torch
 
+def variation_explained(X, L):
+    XL = X @ L          # (n, k)
+    X_recon = XL @ L.T  # (n, p)
+    varex = torch.norm(X_recon, 'fro')**2 / torch.norm(X, 'fro')**2
+    return varex
+
+def prediction_error(X, L, Y):
+    XL = X @ L
+    P = XL @ torch.linalg.pinv(XL, rtol=1e-6)
+    mse = torch.mean((Y - P @ Y)**2)
+    return mse
+
 def scale_features(E):
     E_min = E.min(dim=0, keepdim=True).values
     E_max = E.max(dim=0, keepdim=True).values
