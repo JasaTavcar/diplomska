@@ -41,3 +41,16 @@ def load_zoo_data(device=None):
     class_names = list(types_cat.cat.categories)
 
     return E_raw, C, instance_names, feature_names, class_names
+
+def load_buildings_data():
+    file_path = "../data/parkinsons.data"
+    df = pd.read_csv(file_path)
+    df = df[:1000]
+    target_cols = ['motor_UPDRS', 'total_UPDRS']
+    feature_cols = df.columns.drop(['subject#', *target_cols])
+    X = df[feature_cols].values
+    y = df['total_UPDRS'].values
+
+    X = torch.tensor(X, dtype=torch.float64)
+    y = torch.tensor(y, dtype=torch.float64).unsqueeze(1)
+    return X, y

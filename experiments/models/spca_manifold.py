@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
 import pandas as pd
 
 class SupervisedPCA(torch.nn.Module):
@@ -113,7 +112,7 @@ def loss_fn(X, Y, L, lam=1.0):
 
     return pred_loss + lam * pca_loss
 
-def normalized_loss(X, Y, L):
+def spca_normalized_loss(X, Y, L):
     XL = X @ L  # (n, k)
     XL_pinv = torch.linalg.pinv(XL, rtol=1e-6)
     P = XL @ XL_pinv  # projection onto XL
