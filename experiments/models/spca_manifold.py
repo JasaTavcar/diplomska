@@ -13,6 +13,8 @@ class SupervisedPCA(torch.nn.Module):
         return XL @ torch.linalg.pinv(XL) @ Y
     
     def train(self, X, Y, lam, steps=200):
+        self.to(device=X.device, dtype=X.dtype)
+        
         # Initialize with PCA so rank condition holds
         with torch.no_grad(): # don't break autograd
             self.L.copy_(init_L_pca(X, k=self.L.shape[1]))
@@ -42,33 +44,6 @@ class SupervisedPCA(torch.nn.Module):
 
             if step % 10 == 0:
                 print(f"Step {step}: loss = {loss.item():.4f}")
-    
-def find_best_lambda(X, Y, output_dim=2, steps=200):
-    lambda_candidates = [0.01, 0.1, 1.0, 10.0, 100.0]
-    best_lambda = None
-    best_loss = float('inf')
-    best_model = None
-
-    for lam in lambda_candidates:
-        # Initialize a fresh model for each lambda
-        model = SupervisedPCA(input_dim=X.shape[1], output_dim=output_dim)
-        
-        # Train L for this lambda
-        model.train(X, Y, lam=lam, steps=steps)
-
-        # Compute normalized loss
-        pred_loss, recon_loss = normalized_loss(X, Y, model.L)
-        norm_loss = (pred_loss + recon_loss).item()
-        print(f"Lambda {lam}: normalized loss = {norm_loss:.4f}")
-
-        if norm_loss < best_loss:
-            best_loss = norm_loss
-            best_lambda = lam
-            best_model = model
-
-    print(f"Selected lambda: {best_lambda} with normalized loss {best_loss:.4f}")
-    return best_lambda, best_model
-
 
 def armijo(X, Y, L, grad, lam, alpha=1.0, beta=0.2, c=1e-4):
     loss0 = loss_fn(X, Y, L, lam)

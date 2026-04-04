@@ -42,15 +42,21 @@ def load_zoo_data(device=None):
 
     return E_raw, C, instance_names, feature_names, class_names
 
-def load_buildings_data():
+def load_parkinsons_data(device=None):
     file_path = "../data/parkinsons.data"
     df = pd.read_csv(file_path)
     df = df[:1000]
     target_cols = ['motor_UPDRS', 'total_UPDRS']
     feature_cols = df.columns.drop(['subject#', *target_cols])
+    feature_names = feature_cols.tolist()
     X = df[feature_cols].values
     y = df['total_UPDRS'].values
 
-    X = torch.tensor(X, dtype=torch.float64)
-    y = torch.tensor(y, dtype=torch.float64).unsqueeze(1)
-    return X, y
+    X = torch.tensor(X, dtype=torch.float64, device=device)
+    y = torch.tensor(y, dtype=torch.float64, device=device).unsqueeze(1)
+    return X, y, feature_names
+
+def normalize_to_minus1_1(x, eps=1e-8):
+    x_min = x.min(dim=0, keepdim=True).values
+    x_max = x.max(dim=0, keepdim=True).values
+    return 2 * (x - x_min) / (x_max - x_min + eps) - 1
