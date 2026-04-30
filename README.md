@@ -75,6 +75,18 @@ All the experiment notebooks are saved in `/experiments`. They should be run by 
 - **Method:** Side-by-side projection and loading comparison on the same sampled data
 - **Outputs:** comparative plots and tables (embeddings, loadings, and metric summaries)
 
+### 5) `spca_bair.ipynb`
+
+- **Goal:** SPCA experiment using Bair variable ordering/importance
+- **Method:** Apply SPCA with Bair-informed variable selection/ranking
+- **Outputs:** projection visualizations and metric summaries with Bair-based ordering
+
+### 6) `spca_bair_vs_manifold.ipynb`
+
+- **Goal:** Comparison of **SPCA with Bair ordering vs manifold-optimized SPCA**
+- **Method:** Side-by-side comparison of the two SPCA approaches on the same data
+- **Outputs:** comparative plots and tables showing differences between Bair-based and manifold-optimized projections
+
 ## Basic Result Evaluation Included So Far
 
 The repository includes baseline evaluation suitable for generating thesis artifacts such as plots and tables.:
@@ -82,6 +94,8 @@ The repository includes baseline evaluation suitable for generating thesis artif
 - **Classification evaluation** for FreeViz (`freeviz_classification_eval.ipynb`)
 - **Regression-oriented objective evaluation** for SPCA (`spca.ipynb`)
 - **Direct comparative analysis** of SPCA and PCA (`spca_vs_pca.ipynb`)
+- **SPCA with Bair ordering** experiments (`spca_bair.ipynb`)
+- **Comparison of Bair vs manifold SPCA** (`spca_bair_vs_manifold.ipynb`)
 
 ## Notes for Thesis Integration
 
