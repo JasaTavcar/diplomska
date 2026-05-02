@@ -7,10 +7,6 @@ class SupervisedPCA(torch.nn.Module):
         super().__init__()
         self.L = torch.nn.Parameter(torch.randn(input_dim, output_dim, dtype=torch.float64))
         self.loss_history = []
-
-    def project(self, X, Y):
-        XL = X @ self.L
-        return XL @ torch.linalg.pinv(XL) @ Y
     
     def train(self, X, Y, lam, steps=200):
         self.to(device=X.device, dtype=X.dtype)
