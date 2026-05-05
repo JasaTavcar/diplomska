@@ -8,16 +8,14 @@ class Classifier:
         self.W = W
         self.b = b
         self.lr = lr
-        self.optimizer = optim.SGD([self.W, self.b], lr=self.lr)
+        self.optimizer = optim.Adam([self.W, self.b], lr=0.001)
 
-    def train(self, Z, Y, epochs=10, patience=5, min_delta=1e-4):
+    def train(self, Z, Y, epochs=50, patience=5, min_delta=1e-4):
         self.W.requires_grad_()
         self.b.requires_grad_()
 
         self.W.grad = None
         self.b.grad = None
-
-
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.5, patience=patience, min_lr=1e-6)
 
@@ -46,8 +44,6 @@ class Classifier:
                     break
 
         return best_loss
-
-
 
     def predict(self, Z):
         logits = Z @ self.W + self.b

@@ -24,7 +24,7 @@ class SPCA_Classification(torch.nn.Module):
     def forward(self, X):
         return self.classify_logits(X)
     
-    def train(self, X, Y, lam, steps=200, classifier_epochs=10):
+    def train(self, X, Y, lam, steps=200, classifier_epochs=50):
         self.to(device=X.device, dtype=X.dtype)
         
         # Initialize with PCA so rank condition holds
