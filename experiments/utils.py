@@ -94,6 +94,43 @@ def load_car_data(device=None):
 
     return E_raw, C, instance_names, encoded_feature_names, class_names
 
+def load_mushroom_data(device=None):
+    from ucimlrepo import fetch_ucirepo
+    mushroom = fetch_ucirepo(id=73)
+    df = mushroom.data.features
+    target = mushroom.data.targets["poisonous"]
+
+    # drop constant column
+    df = df.drop(columns=["veil-type"])
+
+    # select 1000 random samples
+    rng = np.random.default_rng(0)
+    keep = rng.choice(len(df), 1000, replace=False)
+    df = df.iloc[keep]
+    target = target.iloc[keep]
+
+    feature_names = df.columns.tolist()
+    df_encoded = pd.get_dummies(df, columns=feature_names)
+    encoded_feature_names = df_encoded.columns.tolist()
+
+    E_raw = torch.tensor(
+        df_encoded.values,
+        dtype=torch.float32,
+        device=device
+    )
+
+    class_cat = target.astype("category")
+    C = torch.tensor(
+        class_cat.cat.codes.values,
+        dtype=torch.long,
+        device=device
+    )
+    class_names = list(class_cat.cat.categories)
+
+    instance_names = [str(i) for i in range(len(df))]
+
+    return E_raw, C, instance_names, encoded_feature_names, class_names
+
 def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1):
     n = points.shape[0]
     if n > 100:
