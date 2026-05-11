@@ -24,7 +24,7 @@ class Freeviz(torch.nn.Module):
         row_sums = E.sum(dim=1, keepdim=True)
         return (E @ self.A) / row_sums
 
-    def train(self, E, C, tol=1e-2, patience=5, max_iter=2000, print_loss=True):
+    def train(self, E, C, tol=1e-3, patience=10, max_iter=2000, print_loss=True):
         optimizer = torch.optim.SGD(
             self.parameters(),
             lr=0.05,
@@ -56,7 +56,7 @@ class Freeviz(torch.nn.Module):
                 best_A = self.A.detach().clone()
 
             if prev_loss is not None:
-                rel_improvement = (prev_loss - current_loss) / abs(prev_loss)
+                rel_improvement = (best_loss - current_loss) / abs(current_loss)
                 if rel_improvement < tol:
                     no_loss_decrease += 1
                 else:

@@ -171,9 +171,12 @@ def load_breast_cancer_data(device=None):
     df = bc.data.features
     target = bc.data.targets["Diagnosis"]
 
-    feature_names = df.columns.tolist()
+    # 30 features are 10 base measurements x 3 statistics (mean, se, worst).
+    # Keep only the mean values.
+    mean_cols = [c for c in df.columns if c.endswith("1")]
+    feature_names = [c.replace("1", "") for c in mean_cols]
     E_raw = torch.tensor(
-        df.values,
+        df[mean_cols].values,
         dtype=torch.float32,
         device=device
     )
@@ -190,8 +193,14 @@ def load_breast_cancer_data(device=None):
 
     return E_raw, C, instance_names, feature_names, class_names
 
-def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1, top_n_loadings=None):
+def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1, top_n_loadings=None, normalize_points=False):
     n = points.shape[0]
+
+    if normalize_points:
+        max_dist = np.max(np.sqrt(points[:, 0]**2 + points[:, 1]**2))
+        if max_dist > 0:
+            points = points / max_dist
+
     if n > 100:
         rng = np.random.default_rng(0)
         keep = rng.choice(n, 100, replace=False)
@@ -252,7 +261,7 @@ def plot_projection(points, vectors, feature_names, class_codes, class_names, ti
         autoalign='xy',
         expand=(1.2, 1.5),
         force_text=(0.5, 1.0),
-        force_static=(0.5, 0.5),
+        force_points=(0.5, 0.5),
         arrowprops=dict(arrowstyle='-', color='grey', lw=0.5, alpha=0.5),
         ensure_no_overlap=True,
     )
