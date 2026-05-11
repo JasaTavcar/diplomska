@@ -87,6 +87,19 @@ All the experiment notebooks are saved in `/experiments`. They should be run by 
 - **Method:** Side-by-side comparison of the two SPCA approaches on the same data
 - **Outputs:** comparative plots and tables showing differences between Bair-based and manifold-optimized projections
 
+### 7) `spca_classification_zoo.ipynb`
+
+- **Goal:** Supervised PCA with classification on the zoological dataset
+- **Method:** SPCA Classification model jointly learns a 2D latent projection and a linear classifier, balancing reconstruction and classification via $\lambda$ regularization
+- **Outputs:** 2D latent projection plots, classification decision boundaries, reconstruction loss and classification accuracy curves across $\lambda$ values
+
+### 8) `compare_freeviz_spca.ipynb`
+
+- **Goal:** Compare resulting visualizations of FreeViz and SPCA for classification
+- **Method:** Train both FreeViz and SPCA classification models on zoo, mushroom, and diagnostic breast cancer datasets, then plot their 2D projections side by side
+- **Outputs:** side-by-side 2D projection plots of FreeViz vs SPCA for each dataset
+
+
 ## Basic Result Evaluation Included So Far
 
 The repository includes baseline evaluation suitable for generating thesis artifacts such as plots and tables.:
@@ -96,6 +109,8 @@ The repository includes baseline evaluation suitable for generating thesis artif
 - **Direct comparative analysis** of SPCA and PCA (`spca_vs_pca.ipynb`)
 - **SPCA with Bair ordering** experiments (`spca_bair.ipynb`)
 - **Comparison of Bair vs manifold SPCA** (`spca_bair_vs_manifold.ipynb`)
+- **FreeViz vs SPCA visualization comparison** (`compare_freeviz_spca.ipynb`)
+- **SPCA classification on zoo data** (`spca_classification_zoo.ipynb`)
 
 ## Notes for Thesis Integration
 
