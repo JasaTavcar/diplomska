@@ -125,19 +125,85 @@ def load_mushroom_data(device=None):
         dtype=torch.long,
         device=device
     )
-    class_names = list(class_cat.cat.categories)
+    mushroom_class_names = {'e': 'edible', 'p': 'poisonous'}
+    class_names = [mushroom_class_names[c] for c in class_cat.cat.categories]
 
     instance_names = [str(i) for i in range(len(df))]
 
     return E_raw, C, instance_names, encoded_feature_names, class_names
 
-def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1):
+def load_glass_data(device=None):
+    from ucimlrepo import fetch_ucirepo
+    glass = fetch_ucirepo(id=42)
+    df = glass.data.features
+    target = glass.data.targets["Type_of_glass"]
+
+    feature_names = df.columns.tolist()
+    E_raw = torch.tensor(
+        df.values,
+        dtype=torch.float32,
+        device=device
+    )
+
+    glass_type_names = {
+        1: "building_windows_float",
+        2: "building_windows_non_float",
+        3: "vehicle_windows_float",
+        4: "vehicle_windows_non_float",
+        5: "containers",
+        6: "tableware",
+        7: "headlamps",
+    }
+    class_cat = target.astype("category")
+    C = torch.tensor(
+        class_cat.cat.codes.values,
+        dtype=torch.long,
+        device=device
+    )
+    class_names = [glass_type_names[int(c)] for c in class_cat.cat.categories]
+    instance_names = [str(i) for i in range(len(df))]
+
+    return E_raw, C, instance_names, feature_names, class_names
+
+def load_breast_cancer_data(device=None):
+    from ucimlrepo import fetch_ucirepo
+    bc = fetch_ucirepo(id=17)
+    df = bc.data.features
+    target = bc.data.targets["Diagnosis"]
+
+    feature_names = df.columns.tolist()
+    E_raw = torch.tensor(
+        df.values,
+        dtype=torch.float32,
+        device=device
+    )
+
+    class_cat = target.astype("category")
+    C = torch.tensor(
+        class_cat.cat.codes.values,
+        dtype=torch.long,
+        device=device
+    )
+    bc_class_names = {'B': 'benign', 'M': 'malignant'}
+    class_names = [bc_class_names[c] for c in class_cat.cat.categories]
+    instance_names = [str(i) for i in range(len(df))]
+
+    return E_raw, C, instance_names, feature_names, class_names
+
+def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1, top_n_loadings=None):
     n = points.shape[0]
     if n > 100:
         rng = np.random.default_rng(0)
         keep = rng.choice(n, 100, replace=False)
         points = points[keep]
         class_codes = class_codes[keep]
+
+    if top_n_loadings is not None:
+        lengths = np.sqrt(vectors[:, 0]**2 + vectors[:, 1]**2)
+        sorted_lengths = np.sort(lengths)[::-1]
+        cutoff = sorted_lengths[min(top_n_loadings - 1, len(sorted_lengths) - 1)]
+    else:
+        cutoff = loading_cutoff
 
     unique_classes = np.unique(class_codes)
     markers = ['o', 's', '^', 'D', 'v', 'P', 'X', '*', '<', '>']
@@ -159,21 +225,37 @@ def plot_projection(points, vectors, feature_names, class_codes, class_names, ti
             alpha=0.9
         )
 
-    circle = plt.Circle((0, 0), loading_cutoff, fill=False, linestyle='--', linewidth=0.8, color='gray')
+    circle = plt.Circle((0, 0), cutoff, fill=False, linestyle='--', linewidth=0.8, color='gray')
     ax.add_patch(circle)
 
-    for i, vec in enumerate(vectors):
-        x, y = vec
-        length = np.sqrt(x**2 + y**2)
-        if length > loading_cutoff:
-            ax.plot([0, x], [0, y], linestyle='-', linewidth=1.2, color='black')
-            ax.text(
-                x * text_scale, y * text_scale,
-                feature_names[i],
-                fontsize=8,
-                ha='center',
-                va='center'
-            )
+    above = [(i, vec) for i, vec in enumerate(vectors) if np.sqrt(vec[0]**2 + vec[1]**2) > cutoff]
+
+    texts = []
+    for i, (x, y) in above:
+        ax.plot([0, x], [0, y], linestyle='-', linewidth=1.2, color='black')
+        t = ax.text(
+            x * text_scale, y * text_scale,
+            feature_names[i],
+            fontsize=8,
+            ha='center',
+            va='center'
+        )
+        texts.append(t)
+
+    from adjustText import adjust_text
+    from matplotlib.collections import PathCollection
+    scatter_objs = [c for c in ax.collections if isinstance(c, PathCollection)]
+    adjust_text(
+        texts,
+        objects=scatter_objs,
+        ax=ax,
+        autoalign='xy',
+        expand=(1.2, 1.5),
+        force_text=(0.5, 1.0),
+        force_static=(0.5, 0.5),
+        arrowprops=dict(arrowstyle='-', color='grey', lw=0.5, alpha=0.5),
+        ensure_no_overlap=True,
+    )
 
     ax.set_xlim(-1.5, 1.5)
     ax.set_ylim(-1.5, 1.5)

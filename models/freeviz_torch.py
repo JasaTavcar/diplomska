@@ -35,6 +35,8 @@ class Freeviz(torch.nn.Module):
         history = []
         no_loss_decrease = 0
         prev_loss = None
+        best_loss = float('inf')
+        best_A = None
         for _ in range(max_iter):
             P = self(E)
             loss = self.energy(P, C)
@@ -49,6 +51,10 @@ class Freeviz(torch.nn.Module):
                 print("step:", len(history), "loss:", loss.item())
                 
             current_loss = history[-1]
+            if current_loss < best_loss:
+                best_loss = current_loss
+                best_A = self.A.detach().clone()
+
             if prev_loss is not None:
                 rel_improvement = (prev_loss - current_loss) / abs(prev_loss)
                 if rel_improvement < tol:
@@ -56,6 +62,8 @@ class Freeviz(torch.nn.Module):
                 else:
                     no_loss_decrease = 0
                 if no_loss_decrease >= patience:
+                    with torch.no_grad():
+                        self.A.copy_(best_A)
                     break
             prev_loss = current_loss
 
