@@ -15,6 +15,62 @@ def prediction_error(X, L, Y):
     mse = torch.mean((Y - P @ Y)**2)
     return mse
 
+def select_lambda(model_class, E, C, num_classes, lam_values=None,
+                  test_size=0.2, steps=500, classifier_epochs=50, lr=0.05,
+                  random_state=42):
+    from sklearn.model_selection import train_test_split
+
+    E_np = E.cpu().numpy()
+    C_np = C.cpu().numpy()
+    E_train, E_test, C_train, C_test = train_test_split(
+        E_np, C_np, test_size=test_size, random_state=random_state
+    )
+
+    device = E.device
+    E_train = torch.tensor(E_train, dtype=torch.float64, device=device)
+    E_test = torch.tensor(E_test, dtype=torch.float64, device=device)
+    C_train = torch.tensor(C_train, dtype=torch.long, device=device)
+    C_test = torch.tensor(C_test, dtype=torch.long, device=device)
+
+    train_mean = E_train.mean(dim=0, keepdim=True)
+    E_train -= train_mean
+    E_test -= train_mean
+
+    if lam_values is None:
+        lam_values = np.logspace(-4, 1, 12)
+
+    var_explained = []
+    accuracies = []
+
+    for lam in lam_values:
+        model = model_class(
+            input_dim=E_train.shape[1], latent_dim=2,
+            num_classes=num_classes, lr=lr
+        ).to(device)
+        model.train(E_train, C_train, lam=lam, steps=steps,
+                    classifier_epochs=classifier_epochs)
+
+        L = model.L.detach()
+
+        ve = variation_explained(E_test, L)
+        var_explained.append(ve.item())
+
+        logits = model.classify_logits(E_test)
+        preds = torch.argmax(logits, dim=1)
+        acc = (preds == C_test).float().mean()
+        accuracies.append(acc.item())
+
+        print(f"lambda = {lam:.6f}:  var_exp = {ve.item():.4f},  "
+              f"accuracy = {acc.item():.4f}")
+
+    sum_metric = [v + a for v, a in zip(var_explained, accuracies)]
+    max_idx = int(np.argmax(sum_metric))
+    best_lam = lam_values[max_idx]
+    print(f"\nBest lambda = {best_lam:.6f} (sum = {sum_metric[max_idx]:.4f})")
+
+    return best_lam
+
+
 def scale_features(E):
     E_min = E.min(dim=0, keepdim=True).values
     E_max = E.max(dim=0, keepdim=True).values
