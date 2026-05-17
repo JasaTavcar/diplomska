@@ -193,7 +193,7 @@ def load_breast_cancer_data(device=None):
 
     return E_raw, C, instance_names, feature_names, class_names
 
-def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1, top_n_loadings=None, normalize_points=False):
+def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1, top_n_loadings=None, normalize_points=False, max_points=None):
     n = points.shape[0]
 
     if normalize_points:
@@ -201,9 +201,12 @@ def plot_projection(points, vectors, feature_names, class_codes, class_names, ti
         if max_dist > 0:
             points = points / max_dist
 
-    if n > 100:
+    if max_points is None:
+        max_points = 100
+
+    if n > max_points:
         rng = np.random.default_rng(0)
-        keep = rng.choice(n, 100, replace=False)
+        keep = rng.choice(n, max_points, replace=False)
         points = points[keep]
         class_codes = class_codes[keep]
 

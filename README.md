@@ -25,6 +25,9 @@ The repository is organized so that methods are implemented as a small reusable 
 
 - `data/zoo.tab`: zoological classification dataset used for FreeViz experiments
 - `data/parkinsons.data`: regression dataset used for SPCA and SPCA-vs-PCA comparison
+- `data/car.data`: car evaluation dataset used in FreeViz vs SPCA comparison
+- [Mushroom](https://archive.ics.uci.edu/dataset/73/mushroom) (UCI ID 73): downloaded via `ucimlrepo` for FreeViz vs SPCA comparison
+- [Breast Cancer Wisconsin (Diagnostic)](https://archive.ics.uci.edu/dataset/17/breast+cancer+wisconsin+diagnostic) (UCI ID 17): downloaded via `ucimlrepo` for FreeViz vs SPCA comparison
 
 ## Environment and Dependencies
 
