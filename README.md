@@ -102,6 +102,11 @@ All the experiment notebooks are saved in `/experiments`. They should be run by 
 - **Method:** Train both FreeViz and SPCA classification models on zoo, mushroom, and diagnostic breast cancer datasets, then plot their 2D projections side by side
 - **Outputs:** side-by-side 2D projection plots of FreeViz vs SPCA for each dataset
 
+### 9) `compare_freeviz_spca_quantitative.ipynb`
+
+- **Goal:** Quantitative comparison of FreeViz and SPCA classification accuracy
+- **Method:** 5-fold stratified cross-validation with kNN (k=5) for FreeViz and learned linear classifier for SPCA classification, on zoo, mushroom, and diagnostic breast cancer datasets
+- **Outputs:** classification accuracy metrics across folds for each dataset
 
 ## Basic Result Evaluation Included So Far
 
@@ -114,6 +119,7 @@ The repository includes baseline evaluation suitable for generating thesis artif
 - **Comparison of Bair vs manifold SPCA** (`spca_bair_vs_manifold.ipynb`)
 - **FreeViz vs SPCA visualization comparison** (`compare_freeviz_spca.ipynb`)
 - **SPCA classification on zoo data** (`spca_classification_zoo.ipynb`)
+- **Quantitative comparison of FreeViz vs SPCA** (`compare_freeviz_spca_quantitative.ipynb`)
 
 ## Notes for Thesis Integration
 

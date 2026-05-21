@@ -4,5 +4,12 @@ pandas
 matplotlib
 torch
 
+# Machine learning and datasets
+scikit-learn
+ucimlrepo
+
+# Plotting helpers
+adjustText
+
 # Notebook workflow
 jupyter
