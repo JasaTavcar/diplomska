@@ -21,7 +21,7 @@ class SupervisedPCA(torch.nn.Module):
             grad_euc = euclidean_grad(X, Y, self.L, lam)
 
             # 2. Grassmann projection
-            grad = grassmann_grad(self.L, grad_euc)
+            grad = riemann_grad(self.L, grad_euc)
 
             # 3. Armijo step size
             eta = armijo(X, Y, self.L, grad, lam)
@@ -111,7 +111,7 @@ def euclidean_grad(X, Y, L, lam):
 
     return term1 + term2
 
-def grassmann_grad(L, grad):
+def riemann_grad(L, grad):
     return grad - L @ (L.T @ grad)
 
 def geodesic_step(L, grad, step_size):

@@ -1,3 +1,6 @@
 __pycache__/
 ignore/
 .venv/
+final.tex
+final_vizualizations
+add_savefigs.py

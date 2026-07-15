@@ -42,7 +42,7 @@ class SPCA_Classification(torch.nn.Module):
             grad_L = self.compute_L_grad(X, Y, lam)
 
             # 4. Grassmann projection on grad_L
-            grad_L_proj = grassmann_grad(self.L, grad_L)
+            grad_L_proj = riemann_grad(self.L, grad_L)
 
             # 5. Armijo step size for L
             eta = armijo(X, Y, self.L, grad_L_proj, lam, self.W, self.b)
@@ -176,7 +176,7 @@ def variance_explained(X, L):
 
 
 
-def grassmann_grad(L, grad):
+def riemann_grad(L, grad):
     return grad - L @ (L.T @ grad)
 
 def geodesic_step(L, grad, step_size):
