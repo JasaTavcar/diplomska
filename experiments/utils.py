@@ -15,7 +15,7 @@ def prediction_error(X, L, Y):
     mse = torch.mean((Y - P @ Y)**2)
     return mse
 
-def select_lambda(model_class, E, C, num_classes, lam_values=None,
+def select_lambda_classification(model_class, E, C, num_classes, lam_values=None,
                   test_size=0.2, steps=500, classifier_epochs=50, lr=0.05,
                   random_state=42):
     from sklearn.model_selection import train_test_split
@@ -69,6 +69,164 @@ def select_lambda(model_class, E, C, num_classes, lam_values=None,
     print(f"\nBest lambda = {best_lam:.6f} (sum = {sum_metric[max_idx]:.4f})")
 
     return best_lam
+
+
+def select_theta_bair(X, y, theta_values=None, test_size=0.2, random_state=42):
+    from sklearn.model_selection import train_test_split
+    from models.spca_bair import SPCA_Bair
+
+    X = np.asarray(X)
+    y = np.asarray(y)
+
+    X_train, X_valid, y_train, y_valid = train_test_split(
+        X, y, test_size=test_size, random_state=random_state
+    )
+
+    if theta_values is None:
+        theta_values = np.linspace(0.1, 5.0, 20)
+
+    best_theta = theta_values[0]
+    best_mse = float('inf')
+
+    for theta in theta_values:
+        try:
+            model = SPCA_Bair(theta=theta, n_components=1)
+            model.fit(X_train, y_train)
+            mse_valid = model.mse(X_valid, y_valid)
+            print(f"theta = {theta:.3f}:  val_mse = {mse_valid:.4f}")
+            if mse_valid < best_mse:
+                best_mse = mse_valid
+                best_theta = theta
+        except ValueError:
+            print(f"theta = {theta:.3f}:  no features selected, skipping")
+
+    print(f"\nBest theta = {best_theta:.3f} (val_mse = {best_mse:.4f})")
+    return best_theta
+
+
+def select_lambda_regression(X, y, lam_values=None, test_size=0.2, steps=200, random_state=42):
+    from sklearn.model_selection import train_test_split
+    from models.spca_manifold import SupervisedPCA
+
+    device = X.device
+
+    X_np = X.cpu().numpy()
+    y_np = y.cpu().numpy()
+    X_train, X_valid, y_train, y_valid = train_test_split(
+        X_np, y_np, test_size=test_size, random_state=random_state
+    )
+
+    X_train = torch.tensor(X_train, dtype=torch.float64, device=device)
+    X_valid = torch.tensor(X_valid, dtype=torch.float64, device=device)
+    y_train = torch.tensor(y_train, dtype=torch.float64, device=device)
+    y_valid = torch.tensor(y_valid, dtype=torch.float64, device=device)
+
+    if lam_values is None:
+        lam_values = np.logspace(-4, 1, 12)
+
+    best_lam = lam_values[0]
+    best_pred_err = float('inf')
+
+    for lam in lam_values:
+        model = SupervisedPCA(input_dim=X_train.shape[1], output_dim=2)
+        model.train(X_train, y_train, lam=lam, steps=steps)
+
+        L = model.L.detach()
+        pred_err = prediction_error(X_valid, L, y_valid)
+        print(f"lambda = {lam:.6f}:  val_pred_err = {pred_err.item():.4f}")
+
+        if pred_err.item() < best_pred_err:
+            best_pred_err = pred_err.item()
+            best_lam = lam
+
+    print(f"\nBest lambda = {best_lam:.6f} (val_pred_err = {best_pred_err:.4f})")
+    return best_lam
+
+
+def compare_bair_vs_manifold(X_raw, y_raw, k=2, test_size=0.2, random_state=42, steps=200):
+    import time
+    from sklearn.model_selection import train_test_split
+    from models.spca_bair import SPCA_Bair
+    from models.spca_manifold import SupervisedPCA
+
+    device = X_raw.device
+
+    X_np = X_raw.cpu().numpy()
+    y_np = y_raw.cpu().numpy()
+    X_train_np, X_test_np, y_train_np, y_test_np = train_test_split(
+        X_np, y_np, test_size=test_size, random_state=random_state
+    )
+
+    X_train = torch.tensor(X_train_np, dtype=torch.float64, device=device)
+    X_test = torch.tensor(X_test_np, dtype=torch.float64, device=device)
+    y_train = torch.tensor(y_train_np, dtype=torch.float64, device=device)
+    y_test = torch.tensor(y_test_np, dtype=torch.float64, device=device)
+
+    train_mean_X = X_train.mean(dim=0)
+    train_mean_y = y_train.mean(dim=0)
+    X_train_centered = X_train - train_mean_X
+    X_test_centered = X_test - train_mean_X
+    y_train_centered = y_train - train_mean_y
+    y_test_centered = y_test - train_mean_y
+
+    eps = 1e-8
+    X_min = X_train_centered.min(dim=0, keepdim=True).values
+    X_max = X_train_centered.max(dim=0, keepdim=True).values
+    X_train = 2 * (X_train_centered - X_min) / (X_max - X_min + eps) - 1
+    X_test = 2 * (X_test_centered - X_min) / (X_max - X_min + eps) - 1
+
+    y_min = y_train_centered.min(dim=0, keepdim=True).values
+    y_max = y_train_centered.max(dim=0, keepdim=True).values
+    y_train = 2 * (y_train_centered - y_min) / (y_max - y_min + eps) - 1
+    y_test = 2 * (y_test_centered - y_min) / (y_max - y_min + eps) - 1
+
+    X_train_np = X_train.cpu().numpy()
+    X_test_np = X_test.cpu().numpy()
+    y_train_np = y_train.squeeze(-1).cpu().numpy()
+
+    # Bair
+    best_theta = select_theta_bair(X_train_np, y_train_np, random_state=random_state)
+    t0 = time.time()
+    bair_model = SPCA_Bair(theta=best_theta, n_components=k)
+    bair_model.fit(X_train_np, y_train_np)
+    t_bair = time.time() - t0
+
+    L_bair = torch.zeros((X_train.shape[1], k), dtype=X_train.dtype, device=X_train.device)
+    L_bair[bair_model.selected_idx, :] = torch.tensor(
+        bair_model.w.T, dtype=X_train.dtype, device=X_train.device
+    )
+
+    ve_bair = variation_explained(X_test, L_bair).item()
+    pe_bair = prediction_error(X_test, L_bair, y_test).item()
+
+    # Manifold
+    best_lam = select_lambda_regression(X_train, y_train, random_state=random_state, steps=steps)
+    t0 = time.time()
+    manifold_model = SupervisedPCA(input_dim=X_train.shape[1], output_dim=k)
+    manifold_model.train(X_train, y_train, lam=best_lam, steps=steps)
+    t_manifold = time.time() - t0
+    L_manifold = manifold_model.L.detach()
+
+    ve_manifold = variation_explained(X_test, L_manifold).item()
+    pe_manifold = prediction_error(X_test, L_manifold, y_test).item()
+
+    return {
+        'bair': {
+            'theta': best_theta,
+            've': ve_bair,
+            'pred_err': pe_bair,
+            'runtime': t_bair,
+            'n_selected_features': len(bair_model.selected_idx),
+            'L': L_bair,
+        },
+        'manifold': {
+            'lam': best_lam,
+            've': ve_manifold,
+            'pred_err': pe_manifold,
+            'runtime': t_manifold,
+            'L': L_manifold,
+        },
+    }
 
 
 def scale_features(E):
