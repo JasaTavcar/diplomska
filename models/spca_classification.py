@@ -108,12 +108,8 @@ def armijo(X, Y, L, grad, lam, W, b, alpha=1.0, beta=0.2, c=1e-4):
     if max_iters == 0:
         alpha = 1e-12  # fallback small step
 
-    #print("alpha:", alpha)
+    #print("alpha:", alpha) # debug
     return alpha
-
-
-# Update train calls armijo accordingly
-
 
 def loss_fn(X, Y, L, W, b, lam=1.0):
     Z = X @ L
@@ -156,10 +152,6 @@ def euclidean_grad(X, Y, L, W, b, lam):
 
     return grad_L, grad_W, grad_b
 
-
-# Update train method to use new grads and manual steps for W, b
-# Will implement next step
-
 def spca_normalized_loss(X, Y, L):
     XL = X @ L  # (n, k)
     XL_pinv = torch.linalg.pinv(XL, rtol=1e-6)
@@ -173,8 +165,6 @@ def spca_normalized_loss(X, Y, L):
 
 def variance_explained(X, L):
     return torch.norm(X @ L, 'fro')**2 / torch.norm(X, 'fro')**2
-
-
 
 def riemann_grad(L, grad):
     return grad - L @ (L.T @ grad)

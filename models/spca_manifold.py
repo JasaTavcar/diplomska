@@ -59,7 +59,7 @@ def armijo(X, Y, L, grad, lam, alpha=1.0, beta=0.2, c=1e-4):
     if max_iters == 0:
         alpha = 1e-12  # fallback small step
 
-    #print("alpha:", alpha)
+    #print("alpha:", alpha) # debug
     return alpha
 
 def loss_fn(X, Y, L, lam=1.0):
