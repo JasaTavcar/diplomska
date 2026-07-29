@@ -85,22 +85,37 @@ def select_theta_bair(X, y, theta_values=None, test_size=0.2, random_state=42):
     if theta_values is None:
         theta_values = np.linspace(0.1, 5.0, 20)
 
-    best_theta = theta_values[0]
-    best_mse = float('inf')
+    records = []
 
     for theta in theta_values:
         try:
             model = SPCA_Bair(theta=theta, n_components=1)
             model.fit(X_train, y_train)
             mse_valid = model.mse(X_valid, y_valid)
-            print(f"theta = {theta:.3f}:  val_mse = {mse_valid:.4f}")
-            if mse_valid < best_mse:
-                best_mse = mse_valid
-                best_theta = theta
+            L = np.zeros((X.shape[1], 1))
+            L[model.selected_idx, 0] = model.w.ravel()
+            Xv = torch.tensor(X_valid, dtype=torch.float64)
+            L_t = torch.tensor(L, dtype=torch.float64)
+            ve = variation_explained(Xv, L_t).item()
+            print(f"theta = {theta:.3f}:  val_mse = {mse_valid:.4f},  val_ve = {ve:.4f}")
+            records.append({"theta": theta, "mse": mse_valid, "ve": ve})
         except ValueError:
             print(f"theta = {theta:.3f}:  no features selected, skipping")
 
-    print(f"\nBest theta = {best_theta:.3f} (val_mse = {best_mse:.4f})")
+    if len(records) == 0:
+        print("No theta succeeded, returning default.")
+        return theta_values[0]
+
+    mse_vals = np.array([r["mse"] for r in records])
+    ve_vals = np.array([r["ve"] for r in records])
+    eps = 1e-12
+    mse_norm = (mse_vals - mse_vals.min()) / (mse_vals.max() - mse_vals.min() + eps)
+    combined = ve_vals + (1 - mse_norm)
+    best_idx = int(np.argmax(combined))
+    best_theta = records[best_idx]["theta"]
+
+    print(f"\nBest theta = {best_theta:.3f} (combined = {combined[best_idx]:.4f}, "
+          f"ve = {records[best_idx]['ve']:.4f}, mse = {records[best_idx]['mse']:.4f})")
     return best_theta
 
 
@@ -124,8 +139,7 @@ def select_lambda_regression(X, y, lam_values=None, test_size=0.2, steps=200, ra
     if lam_values is None:
         lam_values = np.logspace(-4, 1, 12)
 
-    best_lam = lam_values[0]
-    best_pred_err = float('inf')
+    records = []
 
     for lam in lam_values:
         model = SupervisedPCA(input_dim=X_train.shape[1], output_dim=2)
@@ -133,13 +147,21 @@ def select_lambda_regression(X, y, lam_values=None, test_size=0.2, steps=200, ra
 
         L = model.L.detach()
         pred_err = prediction_error(X_valid, L, y_valid)
-        print(f"lambda = {lam:.6f}:  val_pred_err = {pred_err.item():.4f}")
+        ve = variation_explained(X_valid, L).item()
+        pred_err_val = pred_err.item()
+        print(f"lambda = {lam:.6f}:  val_pred_err = {pred_err_val:.4f},  val_ve = {ve:.4f}")
+        records.append({"lam": lam, "pred_err": pred_err_val, "ve": ve})
 
-        if pred_err.item() < best_pred_err:
-            best_pred_err = pred_err.item()
-            best_lam = lam
+    pred_err_vals = np.array([r["pred_err"] for r in records])
+    ve_vals = np.array([r["ve"] for r in records])
+    eps = 1e-12
+    pe_norm = (pred_err_vals - pred_err_vals.min()) / (pred_err_vals.max() - pred_err_vals.min() + eps)
+    combined = ve_vals + (1 - pe_norm)
+    best_idx = int(np.argmax(combined))
+    best_lam = records[best_idx]["lam"]
 
-    print(f"\nBest lambda = {best_lam:.6f} (val_pred_err = {best_pred_err:.4f})")
+    print(f"\nBest lambda = {best_lam:.6f} (combined = {combined[best_idx]:.4f}, "
+          f"ve = {ve_vals[best_idx]:.4f}, pred_err = {pred_err_vals[best_idx]:.4f})")
     return best_lam
 
 
@@ -271,6 +293,60 @@ def load_parkinsons_data(device=None):
     X = torch.tensor(X, dtype=torch.float64, device=device)
     y = torch.tensor(y, dtype=torch.float64, device=device).unsqueeze(1)
     return X, y, feature_names
+
+def load_energy_efficiency_data(device=None):
+    from ucimlrepo import fetch_ucirepo
+    data = fetch_ucirepo(id=242)
+    df = data.data.features
+    targets = data.data.targets
+    X = torch.tensor(df.values, dtype=torch.float64, device=device)
+    y = targets["Y1"].values  # Heating Load
+    y = torch.tensor(y, dtype=torch.float64, device=device).unsqueeze(1)
+    return X, y
+
+
+def load_real_estate_data(device=None):
+    from ucimlrepo import fetch_ucirepo
+    data = fetch_ucirepo(id=477)
+    df = data.data.features
+    target = data.data.targets
+    # Drop transaction date (X1) as instructed
+    df = df.drop(columns=["X1 transaction date"])
+    X = torch.tensor(df.values, dtype=torch.float64, device=device)
+    y = target.values.ravel()
+    y = torch.tensor(y, dtype=torch.float64, device=device).unsqueeze(1)
+    return X, y
+
+
+def load_wine_quality_data(device=None, n_samples=1000, random_state=42):
+    from ucimlrepo import fetch_ucirepo
+    data = fetch_ucirepo(id=186)
+    df = data.data.features
+    target = data.data.targets
+    rng = np.random.default_rng(random_state)
+    keep = rng.choice(len(df), n_samples, replace=False)
+    df = df.iloc[keep]
+    target = target.iloc[keep]
+    X = torch.tensor(df.values, dtype=torch.float64, device=device)
+    y = target.values.ravel()
+    y = torch.tensor(y, dtype=torch.float64, device=device).unsqueeze(1)
+    return X, y
+
+
+def load_student_performance_data(device=None):
+    from ucimlrepo import fetch_ucirepo
+    data = fetch_ucirepo(id=320)
+    df = data.data.features
+    targets = data.data.targets
+    # One-hot encode categorical features
+    categorical_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
+    df_encoded = pd.get_dummies(df, columns=categorical_cols)
+    df_encoded = df_encoded.astype(float)
+    X = torch.tensor(df_encoded.values, dtype=torch.float64, device=device)
+    y = targets["G3"].values  # final grade only
+    y = torch.tensor(y, dtype=torch.float64, device=device).unsqueeze(1)
+    return X, y
+
 
 def normalize_to_minus1_1(x, eps=1e-8):
     x_min = x.min(dim=0, keepdim=True).values
