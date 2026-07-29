@@ -87,9 +87,6 @@ class SPCA_Classification(torch.nn.Module):
 
         return grad_L
 
-
-
-
 def armijo(X, Y, L, grad, lam, W, b, alpha=1.0, beta=0.2, c=1e-4):
     loss0 = loss_fn(X, Y, L, W, b, lam)
     grad_norm_sq = torch.norm(grad)**2
