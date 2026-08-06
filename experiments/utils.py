@@ -264,7 +264,25 @@ def load_zoo_data(device=None):
 
     instance_names = df["name"].tolist()
     feature_cols = [col for col in df.columns if col not in ("name", "type")]
-    feature_names = feature_cols
+    zoo_feature_names = {
+        "hair": "dlake",
+        "feathers": "perje",
+        "eggs": "jajca",
+        "milk": "mleko",
+        "airborne": "letenje",
+        "aquatic": "vodne živali",
+        "predator": "plenilec",
+        "toothed": "zobje",
+        "backbone": "hrbtenica",
+        "breathes": "dihanje",
+        "venomous": "strupen",
+        "fins": "plavuti",
+        "legs": "noge",
+        "tail": "rep",
+        "domestic": "udomačen",
+        "catsize": "velikost",
+    }
+    feature_names = [zoo_feature_names[col] for col in feature_cols]
     E_raw = torch.tensor(
         df[feature_cols].values,
         dtype=torch.float32,
@@ -276,7 +294,16 @@ def load_zoo_data(device=None):
         dtype=torch.long,
         device=device
     )
-    class_names = list(types_cat.cat.categories)
+    zoo_class_names = {
+        "amphibian": "dvoživke",
+        "bird": "ptiči",
+        "fish": "ribe",
+        "insect": "žuželke",
+        "invertebrate": "nevretenčarji",
+        "mammal": "sesalci",
+        "reptile": "plazilci",
+    }
+    class_names = [zoo_class_names[c] for c in types_cat.cat.categories]
 
     return E_raw, C, instance_names, feature_names, class_names
 
@@ -401,7 +428,34 @@ def load_mushroom_data(device=None):
 
     feature_names = df.columns.tolist()
     df_encoded = pd.get_dummies(df, columns=feature_names)
-    encoded_feature_names = df_encoded.columns.tolist()
+    mushroom_feature_names = {
+        "cap-shape": "oblika_klobuka",
+        "cap-surface": "površina_klobuka",
+        "cap-color": "barva_klobuka",
+        "bruises": "modrice",
+        "odor": "vonj",
+        "gill-attachment": "pritrditev_lističev",
+        "gill-spacing": "razmik_lističev",
+        "gill-size": "velikost_lističev",
+        "gill-color": "barva_lističev",
+        "stalk-shape": "oblika_beta",
+        "stalk-root": "podstavek_beta",
+        "stalk-surface-above-ring": "površina_beta_nad_obročkom",
+        "stalk-surface-below-ring": "površina_beta_pod_obročkom",
+        "stalk-color-above-ring": "barva_beta_nad_obročkom",
+        "stalk-color-below-ring": "barva_beta_pod_obročkom",
+        "veil-type": "vrsta_koprene",
+        "veil-color": "barva_koprene",
+        "ring-number": "število_obročkov",
+        "ring-type": "vrsta_obročka",
+        "spore-print-color": "barva_trosov",
+        "population": "populacija",
+        "habitat": "življenjski_prostor",
+    }
+    encoded_feature_names = []
+    for col in df_encoded.columns.tolist():
+        base, val = col.rsplit("_", 1)
+        encoded_feature_names.append(f"{mushroom_feature_names.get(base, base)}_{val}")
 
     E_raw = torch.tensor(
         df_encoded.values,
@@ -415,7 +469,7 @@ def load_mushroom_data(device=None):
         dtype=torch.long,
         device=device
     )
-    mushroom_class_names = {'e': 'edible', 'p': 'poisonous'}
+    mushroom_class_names = {'e': 'užitna', 'p': 'strupena'}
     class_names = [mushroom_class_names[c] for c in class_cat.cat.categories]
 
     instance_names = [str(i) for i in range(len(df))]
@@ -464,7 +518,19 @@ def load_breast_cancer_data(device=None):
     # 30 features are 10 base measurements x 3 statistics (mean, se, worst).
     # Keep only the mean values.
     mean_cols = [c for c in df.columns if c.endswith("1")]
-    feature_names = [c.replace("1", "") for c in mean_cols]
+    bc_feature_names = {
+        "radius": "polmer",
+        "texture": "tekstura",
+        "perimeter": "obseg",
+        "area": "površina",
+        "smoothness": "gladkost",
+        "compactness": "kompaktnost",
+        "concavity": "konkavnost",
+        "concave_points": "konkavne točke",
+        "symmetry": "simetrija",
+        "fractal_dimension": "fraktalna dimenzija",
+    }
+    feature_names = [bc_feature_names[c.replace("1", "")] for c in mean_cols]
     E_raw = torch.tensor(
         df[mean_cols].values,
         dtype=torch.float32,
@@ -477,13 +543,13 @@ def load_breast_cancer_data(device=None):
         dtype=torch.long,
         device=device
     )
-    bc_class_names = {'B': 'benign', 'M': 'malignant'}
+    bc_class_names = {'B': 'neškodljiv', 'M': 'rakotvoren'}
     class_names = [bc_class_names[c] for c in class_cat.cat.categories]
     instance_names = [str(i) for i in range(len(df))]
 
     return E_raw, C, instance_names, feature_names, class_names
 
-def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1, top_n_loadings=None, normalize_points=False, max_points=None):
+def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1, top_n_loadings=None, normalize_points=False, max_points=None, title_fontsize=None):
     n = points.shape[0]
 
     if normalize_points:
@@ -561,11 +627,13 @@ def plot_projection(points, vectors, feature_names, class_codes, class_names, ti
 
     ax.set_xlim(-1.5, 1.5)
     ax.set_ylim(-1.5, 1.5)
-    ax.set_xticks([-1, 0, 1])
-    ax.set_yticks([-1, 0, 1])
+    ax.set_xticks([])
+    ax.set_yticks([])
     ax.set_aspect('equal', 'box')
+    for spine in ax.spines.values():
+        spine.set_visible(False)
 
-    ax.legend(title='Classes', loc='upper right', frameon=True, fontsize=9, title_fontsize=10)
-    ax.set_title(title)
+    ax.legend(title='Razredi', loc='upper right', frameon=True, fontsize=9, title_fontsize=10)
+    ax.set_title(title, fontsize=title_fontsize)
 
     return ax
