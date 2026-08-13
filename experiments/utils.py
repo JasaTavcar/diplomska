@@ -2,6 +2,7 @@ import pandas as pd
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 def variation_explained(X, L):
     XL = X @ L          # (n, k)
@@ -265,20 +266,20 @@ def load_zoo_data(device=None):
     instance_names = df["name"].tolist()
     feature_cols = [col for col in df.columns if col not in ("name", "type")]
     zoo_feature_names = {
-        "hair": "dlake",
-        "feathers": "perje",
-        "eggs": "jajca",
-        "milk": "mleko",
-        "airborne": "letenje",
-        "aquatic": "vodne živali",
+        "hair": "ima dlako",
+        "feathers": "ima perje",
+        "eggs": "leže jajca",
+        "milk": "daje mleko",
+        "airborne": "leti",
+        "aquatic": "živi v vodi",
         "predator": "plenilec",
-        "toothed": "zobje",
-        "backbone": "hrbtenica",
-        "breathes": "dihanje",
+        "toothed": "ima zobe",
+        "backbone": "ima hrbtenico",
+        "breathes": "diha",
         "venomous": "strupen",
-        "fins": "plavuti",
-        "legs": "noge",
-        "tail": "rep",
+        "fins": "ima plavuti",
+        "legs": "ima noge",
+        "tail": "ima rep",
         "domestic": "udomačen",
         "catsize": "velikost",
     }
@@ -549,7 +550,7 @@ def load_breast_cancer_data(device=None):
 
     return E_raw, C, instance_names, feature_names, class_names
 
-def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1, top_n_loadings=None, normalize_points=False, max_points=None, title_fontsize=None):
+def plot_projection(points, vectors, feature_names, class_codes, class_names, title, loading_cutoff=0.4, ax=None, text_scale=1.1, top_n_loadings=None, normalize_points=False, max_points=None, title_fontsize=None, show_legend=True, crop=False, crop_margin=0.15, label_fontsize=8, legend_fontsize=9, legend_title_fontsize=10):
     n = points.shape[0]
 
     if normalize_points:
@@ -604,18 +605,54 @@ def plot_projection(points, vectors, feature_names, class_codes, class_names, ti
         t = ax.text(
             x * text_scale, y * text_scale,
             feature_names[i],
-            fontsize=8,
+            fontsize=label_fontsize,
             ha='center',
             va='center'
         )
         texts.append(t)
 
+    if crop:
+        xs = [-cutoff, cutoff, float(np.min(points[:, 0])), float(np.max(points[:, 0]))]
+        ys = [-cutoff, cutoff, float(np.min(points[:, 1])), float(np.max(points[:, 1]))]
+        for _, (x, y) in above:
+            xs.append(float(x))
+            ys.append(float(y))
+            xs.append(float(x * text_scale))
+            ys.append(float(y * text_scale))
+
+        x_c = 0.5 * (min(xs) + max(xs))
+        y_c = 0.5 * (min(ys) + max(ys))
+        half = 0.5 * max(max(xs) - min(xs), max(ys) - min(ys)) + crop_margin
+
+        ax.set_xlim(x_c - half, x_c + half)
+        ax.set_ylim(y_c - half, y_c + half)
+    else:
+        ax.set_xlim(-1.5, 1.5)
+        ax.set_ylim(-1.5, 1.5)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_aspect('equal', 'box')
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    legend_rect = None
+    if show_legend:
+        legend = ax.legend(title='Razredi', loc='upper right', frameon=True, fontsize=legend_fontsize, title_fontsize=legend_title_fontsize)
+        bbox = legend.get_window_extent(ax.figure.canvas.get_renderer())
+        inv = ax.transData.inverted()
+        x0, y0 = inv.transform((bbox.x0, bbox.y0))
+        x1, y1 = inv.transform((bbox.x1, bbox.y1))
+        legend_rect = Rectangle((min(x0, x1), min(y0, y1)), abs(x1 - x0), abs(y1 - y0))
+        legend_rect.set_visible(False)
+        ax.add_patch(legend_rect)
+
     from adjustText import adjust_text
     from matplotlib.collections import PathCollection
     scatter_objs = [c for c in ax.collections if isinstance(c, PathCollection)]
+    objects = scatter_objs + ([legend_rect] if legend_rect is not None else [])
     adjust_text(
         texts,
-        objects=scatter_objs,
+        objects=objects,
         ax=ax,
         autoalign='xy',
         expand=(1.2, 1.5),
@@ -625,15 +662,6 @@ def plot_projection(points, vectors, feature_names, class_codes, class_names, ti
         ensure_no_overlap=True,
     )
 
-    ax.set_xlim(-1.5, 1.5)
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_aspect('equal', 'box')
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-
-    ax.legend(title='Razredi', loc='upper right', frameon=True, fontsize=9, title_fontsize=10)
     ax.set_title(title, fontsize=title_fontsize)
 
     return ax
